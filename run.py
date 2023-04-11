@@ -1,3 +1,6 @@
+import os
+os.environ["XLA_PYTHON_CLIENT_ALLOCATOR"] = "platform" # Needed to free up jax GPU memory
+
 import os, sys, copy, glob, json, time, random, argparse
 from shutil import copyfile
 from tqdm import tqdm, trange
@@ -174,7 +177,6 @@ def load_everything(args, cfg):
     for k in list(data_dict.keys()):
         if k not in kept_keys:
             data_dict.pop(k)
-
     # construct data tensor
     if data_dict['irregular_shape']:
         data_dict['images'] = [torch.FloatTensor(im, device='cpu') for im in data_dict['images']]
