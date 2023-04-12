@@ -5,7 +5,7 @@ basedir = './logs/rawnerf'
 data = dict(
     dataset_type='raw',
     ndc=True,
-    factor=8,
+    factor=4,
 )
 
 coarse_train = dict(

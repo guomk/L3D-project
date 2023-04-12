@@ -65,7 +65,8 @@ def config_parser():
 def render_viewpoints(model, render_poses, HW, Ks, ndc, render_kwargs,
                       gt_imgs=None, savedir=None, dump_images=False,
                       render_factor=0, render_video_flipy=False, render_video_rot90=0,
-                      eval_ssim=False, eval_lpips_alex=False, eval_lpips_vgg=False):
+                      eval_ssim=False, eval_lpips_alex=False, eval_lpips_vgg=False,
+                      metadata=None):
     '''Render images for the given viewpoints; run evaluation if gt given.
     '''
     assert len(render_poses) == len(HW) and len(HW) == len(Ks)
@@ -173,7 +174,7 @@ def load_everything(args, cfg):
     kept_keys = {
             'hwf', 'HW', 'Ks', 'near', 'far', 'near_clip',
             'i_train', 'i_val', 'i_test', 'irregular_shape',
-            'poses', 'render_poses', 'images'}
+            'poses', 'render_poses', 'images', 'metadata', 'raw_testscene'}
     for k in list(data_dict.keys()):
         if k not in kept_keys:
             data_dict.pop(k)
@@ -674,6 +675,7 @@ if __name__=='__main__':
                 savedir=testsavedir, dump_images=args.dump_images,
                 eval_ssim=args.eval_ssim, eval_lpips_alex=args.eval_lpips_alex, eval_lpips_vgg=args.eval_lpips_vgg,
                 **render_viewpoints_kwargs)
+        np.savez_compressed(os.path.join(testsavedir, 'results.npz'), rgbs=rgbs, depths=depths, bgmaps=bgmaps)
         imageio.mimwrite(os.path.join(testsavedir, 'video.rgb.mp4'), utils.to8b(rgbs), fps=30, quality=8)
         imageio.mimwrite(os.path.join(testsavedir, 'video.depth.mp4'), utils.to8b(1 - depths / np.max(depths)), fps=30, quality=8)
 
@@ -690,6 +692,7 @@ if __name__=='__main__':
                 savedir=testsavedir, dump_images=args.dump_images,
                 eval_ssim=args.eval_ssim, eval_lpips_alex=args.eval_lpips_alex, eval_lpips_vgg=args.eval_lpips_vgg,
                 **render_viewpoints_kwargs)
+        np.savez_compressed(os.path.join(testsavedir, 'results.npz'), rgbs=rgbs, depths=depths, bgmaps=bgmaps)
         imageio.mimwrite(os.path.join(testsavedir, 'video.rgb.mp4'), utils.to8b(rgbs), fps=30, quality=8)
         imageio.mimwrite(os.path.join(testsavedir, 'video.depth.mp4'), utils.to8b(1 - depths / np.max(depths)), fps=30, quality=8)
 
@@ -707,6 +710,7 @@ if __name__=='__main__':
                 render_video_rot90=args.render_video_rot90,
                 savedir=testsavedir, dump_images=args.dump_images,
                 **render_viewpoints_kwargs)
+        np.savez_compressed(os.path.join(testsavedir, 'results.npz'), rgbs=rgbs, depths=depths, bgmaps=bgmaps)
         imageio.mimwrite(os.path.join(testsavedir, 'video.rgb.mp4'), utils.to8b(rgbs), fps=30, quality=8)
         import matplotlib.pyplot as plt
         depths_vis = depths * (1-bgmaps) + bgmaps

@@ -172,13 +172,15 @@ def _load_data(basedir, factor=None, width=None, height=None, load_imgs=True, lo
     print(images.shape)
     imgs = np.transpose(images, (1, 2, 3, 0))
     print(imgs.shape, imgs.min(), imgs.max())
+    print('metadata', metadata.keys())
+    print('raw_testscene', raw_testscene)
 
     # imgs = imgs = [imread(f)[...,:3]/255. for f in imgfiles]
     # imgs = np.stack(imgs, -1)
 
     print('Loaded image data', imgs.shape, poses[:,-1,0])
 
-    return poses, bds, imgs
+    return poses, bds, imgs, metadata, raw_testscene
 
 
 def normalize(x):
@@ -309,13 +311,10 @@ def load_raw_data(basedir, factor=8, width=None, height=None,
                    bd_factor=.75, spherify=False, path_zflat=False, load_depths=False,
                    movie_render_kwargs={}):
 
-    poses, bds, imgs, *depths = _load_data(basedir, factor=factor, width=width, height=height,
+    poses, bds, imgs, metadata, raw_testscene = _load_data(basedir, factor=factor, width=width, height=height,
                                            load_depths=load_depths) # factor=8 downsamples original imgs by 8x
     print('Loaded', basedir, bds.min(), bds.max())
-    if load_depths:
-        depths = depths[0]
-    else:
-        depths = 0
+    depths = 0
 
     # Correct rotation matrix ordering and move variable dim to axis 0
     poses = np.concatenate([poses[:, 1:2, :], -poses[:, 0:1, :], poses[:, 2:, :]], 1)
@@ -425,5 +424,5 @@ def load_raw_data(basedir, factor=8, width=None, height=None,
     images = images.astype(np.float32)
     poses = poses.astype(np.float32)
 
-    return images, depths, poses, bds, render_poses, i_test
+    return images, depths, poses, bds, render_poses, i_test, metadata, raw_testscene
 
