@@ -264,11 +264,12 @@ def create_new_model(cfg, cfg_model, cfg_train, xyz_min, xyz_max, stage, coarse_
     if len(cfg_train.pg_scale):
         num_voxels = int(num_voxels / (2**len(cfg_train.pg_scale)))
 
+    use_raw = cfg.data.dataset_type == 'raw'
     if cfg.data.ndc:
         print(f'scene_rep_reconstruction ({stage}): \033[96muse multiplane images\033[0m')
         model = dmpigo.DirectMPIGO(
             xyz_min=xyz_min, xyz_max=xyz_max,
-            num_voxels=num_voxels,
+            num_voxels=num_voxels, use_raw=use_raw,
             **model_kwargs)
     elif cfg.data.unbounded_inward:
         print(f'scene_rep_reconstruction ({stage}): \033[96muse contraced voxel grid (covering unbounded)\033[0m')

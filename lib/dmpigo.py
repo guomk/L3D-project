@@ -24,9 +24,12 @@ class DirectMPIGO(torch.nn.Module):
                  density_config={}, k0_config={},
                  rgbnet_dim=0,
                  rgbnet_depth=3, rgbnet_width=128,
-                 viewbase_pe=0,
+                 viewbase_pe=0, use_raw=False,
                  **kwargs):
         super(DirectMPIGO, self).__init__()
+        # use raw format
+        self.use_raw = use_raw
+        
         self.register_buffer('xyz_min', torch.Tensor(xyz_min))
         self.register_buffer('xyz_max', torch.Tensor(xyz_max))
         self.fast_color_thres = fast_color_thres
@@ -296,7 +299,10 @@ class DirectMPIGO(torch.nn.Module):
 
         if self.rgbnet is None:
             # no view-depend effect
-            rgb = torch.sigmoid(vox_emb)
+            if self.use_raw:
+                rgb = torch.exp(vox_emb - 5)
+            else:
+                rgb = torch.sigmoid(vox_emb)
         else:
             # view-dependent color emission
             viewdirs_emb = (viewdirs.unsqueeze(-1) * self.viewfreq).flatten(-2)
@@ -304,7 +310,10 @@ class DirectMPIGO(torch.nn.Module):
             viewdirs_emb = viewdirs_emb[ray_id]
             rgb_feat = torch.cat([vox_emb, viewdirs_emb], -1)
             rgb_logit = self.rgbnet(rgb_feat)
-            rgb = torch.sigmoid(rgb_logit)
+            if self.use_raw:
+                rgb = torch.exp(rgb_logit - 5)
+            else:
+                rgb = torch.sigmoid(rgb_logit)
 
         # Ray marching
         rgb_marched = segment_coo(
