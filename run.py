@@ -596,6 +596,11 @@ if __name__=='__main__':
     # load images / poses / camera settings / data split
     data_dict = load_everything(args=args, cfg=cfg)
 
+    if cfg.data.dataset_type == 'raw':
+        postprocess_fn = data_dict['metadata']['postprocess_fn']
+    else:
+        postprocess_fn = lambda z, _=None: z
+
     # export scene bbox and camera poses in 3d for debugging and visualization
     if args.export_bbox_and_cams_only:
         print('Export bbox and cameras...')
@@ -676,7 +681,9 @@ if __name__=='__main__':
                 savedir=testsavedir, dump_images=args.dump_images,
                 eval_ssim=args.eval_ssim, eval_lpips_alex=args.eval_lpips_alex, eval_lpips_vgg=args.eval_lpips_vgg,
                 **render_viewpoints_kwargs)
-        np.savez_compressed(os.path.join(testsavedir, 'results.npz'), rgbs=rgbs, depths=depths, bgmaps=bgmaps)
+        np.savez_compressed(os.path.join(testsavedir, 'unproc_results.npz'), rgbs=rgbs, depths=depths, bgmaps=bgmaps)
+        if(cfg.data.dataset_type == 'raw'):
+            rgbs =  postprocess_fn(rgbs)
         imageio.mimwrite(os.path.join(testsavedir, 'video.rgb.mp4'), utils.to8b(rgbs), fps=30, quality=8)
         imageio.mimwrite(os.path.join(testsavedir, 'video.depth.mp4'), utils.to8b(1 - depths / np.max(depths)), fps=30, quality=8)
 
@@ -693,7 +700,9 @@ if __name__=='__main__':
                 savedir=testsavedir, dump_images=args.dump_images,
                 eval_ssim=args.eval_ssim, eval_lpips_alex=args.eval_lpips_alex, eval_lpips_vgg=args.eval_lpips_vgg,
                 **render_viewpoints_kwargs)
-        np.savez_compressed(os.path.join(testsavedir, 'results.npz'), rgbs=rgbs, depths=depths, bgmaps=bgmaps)
+        np.savez_compressed(os.path.join(testsavedir, 'unproc_results.npz'), rgbs=rgbs, depths=depths, bgmaps=bgmaps)
+        if(cfg.data.dataset_type == 'raw'):
+            rgbs =  postprocess_fn(rgbs)
         imageio.mimwrite(os.path.join(testsavedir, 'video.rgb.mp4'), utils.to8b(rgbs), fps=30, quality=8)
         imageio.mimwrite(os.path.join(testsavedir, 'video.depth.mp4'), utils.to8b(1 - depths / np.max(depths)), fps=30, quality=8)
 
@@ -711,7 +720,9 @@ if __name__=='__main__':
                 render_video_rot90=args.render_video_rot90,
                 savedir=testsavedir, dump_images=args.dump_images,
                 **render_viewpoints_kwargs)
-        np.savez_compressed(os.path.join(testsavedir, 'results.npz'), rgbs=rgbs, depths=depths, bgmaps=bgmaps)
+        np.savez_compressed(os.path.join(testsavedir, 'unproc_results.npz'), rgbs=rgbs, depths=depths, bgmaps=bgmaps)
+        if(cfg.data.dataset_type == 'raw'):
+            rgbs =  postprocess_fn(rgbs)
         imageio.mimwrite(os.path.join(testsavedir, 'video.rgb.mp4'), utils.to8b(rgbs), fps=30, quality=8)
         import matplotlib.pyplot as plt
         depths_vis = depths * (1-bgmaps) + bgmaps
