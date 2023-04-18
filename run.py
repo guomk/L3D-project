@@ -455,7 +455,7 @@ def scene_rep_reconstruction(args, cfg, cfg_model, cfg_train, xyz_min, xyz_max, 
 
         # gradient descent step
         optimizer.zero_grad(set_to_none=True)
-        if cfg_train.tonemap_loss:
+        if cfg.data.dataset_type == 'raw':
             resid = render_result['rgb_marched'] - target
             scaling_grad = 1. / (render_result['rgb_marched'].detach() + 1e-3)
             loss = torch.mean((resid * scaling_grad) ** 2)

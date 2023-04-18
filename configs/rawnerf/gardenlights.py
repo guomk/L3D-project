@@ -3,8 +3,7 @@ _base_ = './raw_default.py'
 expname = 'rawnerf_gardenlights'
 
 data = dict(
-    # datadir='./data/rawnerf/scenes/gardenlights',
-    datadir='./gardenlights',
+    datadir='./data/rawnerf/scenes/gardenlights',
     factor=8,
 )
 

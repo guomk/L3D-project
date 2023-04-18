@@ -63,7 +63,6 @@ coarse_train = dict(
     decay_after_scale=1.0,        # decay act_shift after scaling
     skip_zero_grad_fields=[],     # the variable name to skip optimizing parameters w/ zero grad in each iteration
     maskout_lt_nviews=0,
-    tonemap_loss=False,
 )
 
 fine_train = deepcopy(coarse_train)

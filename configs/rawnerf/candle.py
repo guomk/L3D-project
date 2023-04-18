@@ -7,3 +7,6 @@ data = dict(
     # datadir='./data/nerf_llff_data/room',
 )
 
+fine_train = dict(
+    N_iters=50000,
+)
