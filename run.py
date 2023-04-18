@@ -454,7 +454,12 @@ def scene_rep_reconstruction(args, cfg, cfg_model, cfg_train, xyz_min, xyz_max, 
 
         # gradient descent step
         optimizer.zero_grad(set_to_none=True)
-        loss = cfg_train.weight_main * F.mse_loss(render_result['rgb_marched'], target)
+        if cfg_train.tonemap_loss:
+            resid = render_result['rgb_marched'] - target
+            scaling_grad = 1. / (render_result['rgb_marched'].detach() + 1e-3)
+            loss = torch.sum((resid * scaling_grad) ** 2)
+        else:
+            loss = cfg_train.weight_main * F.mse_loss(render_result['rgb_marched'], target)
         psnr = utils.mse2psnr(loss.detach())
         if cfg_train.weight_entropy_last > 0:
             pout = render_result['alphainv_last'].clamp(1e-6, 1-1e-6)
@@ -701,8 +706,8 @@ if __name__=='__main__':
                 eval_ssim=args.eval_ssim, eval_lpips_alex=args.eval_lpips_alex, eval_lpips_vgg=args.eval_lpips_vgg,
                 **render_viewpoints_kwargs)
         np.savez_compressed(os.path.join(testsavedir, 'unproc_results.npz'), rgbs=rgbs, depths=depths, bgmaps=bgmaps)
-        if(cfg.data.dataset_type == 'raw'):
-            rgbs =  postprocess_fn(rgbs)
+        # if(cfg.data.dataset_type == 'raw'):
+        #     rgbs =  postprocess_fn(rgbs)
         imageio.mimwrite(os.path.join(testsavedir, 'video.rgb.mp4'), utils.to8b(rgbs), fps=30, quality=8)
         imageio.mimwrite(os.path.join(testsavedir, 'video.depth.mp4'), utils.to8b(1 - depths / np.max(depths)), fps=30, quality=8)
 
@@ -721,8 +726,8 @@ if __name__=='__main__':
                 savedir=testsavedir, dump_images=args.dump_images,
                 **render_viewpoints_kwargs)
         np.savez_compressed(os.path.join(testsavedir, 'unproc_results.npz'), rgbs=rgbs, depths=depths, bgmaps=bgmaps)
-        if(cfg.data.dataset_type == 'raw'):
-            rgbs =  postprocess_fn(rgbs)
+        # if(cfg.data.dataset_type == 'raw'):
+        #     rgbs =  postprocess_fn(rgbs)
         imageio.mimwrite(os.path.join(testsavedir, 'video.rgb.mp4'), utils.to8b(rgbs), fps=30, quality=8)
         import matplotlib.pyplot as plt
         depths_vis = depths * (1-bgmaps) + bgmaps

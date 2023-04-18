@@ -23,6 +23,7 @@ fine_train = dict(
     tv_dense_before=10000,
     weight_tv_density=1e-5,
     weight_tv_k0=1e-6,
+    tonemap_loss=True,
 )
 
 fine_model_and_render = dict(
