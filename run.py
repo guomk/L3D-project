@@ -1,5 +1,6 @@
 import os
 os.environ["XLA_PYTHON_CLIENT_ALLOCATOR"] = "platform" # Needed to free up jax GPU memory
+# os.environ["CUDA_VISIBLE_DEVICES"] = '0'
 
 import os, sys, copy, glob, json, time, random, argparse
 from shutil import copyfile
@@ -457,7 +458,7 @@ def scene_rep_reconstruction(args, cfg, cfg_model, cfg_train, xyz_min, xyz_max, 
         if cfg_train.tonemap_loss:
             resid = render_result['rgb_marched'] - target
             scaling_grad = 1. / (render_result['rgb_marched'].detach() + 1e-3)
-            loss = torch.sum((resid * scaling_grad) ** 2)
+            loss = torch.mean((resid * scaling_grad) ** 2)
         else:
             loss = cfg_train.weight_main * F.mse_loss(render_result['rgb_marched'], target)
         psnr = utils.mse2psnr(loss.detach())
