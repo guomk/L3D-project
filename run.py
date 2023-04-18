@@ -458,10 +458,11 @@ def scene_rep_reconstruction(args, cfg, cfg_model, cfg_train, xyz_min, xyz_max, 
         if cfg.data.dataset_type == 'raw':
             resid = render_result['rgb_marched'] - target
             scaling_grad = 1. / (render_result['rgb_marched'].detach() + 1e-3)
-            loss = torch.mean((resid * scaling_grad) ** 2)
+            loss = cfg_train.weight_main * torch.mean((resid * scaling_grad) ** 2)
         else:
             loss = cfg_train.weight_main * F.mse_loss(render_result['rgb_marched'], target)
-        psnr = utils.mse2psnr(loss.detach())
+        mse = F.mse_loss(render_result['rgb_marched'], target) * cfg_train.weight_main
+        psnr = utils.mse2psnr(mse.detach())
         if cfg_train.weight_entropy_last > 0:
             pout = render_result['alphainv_last'].clamp(1e-6, 1-1e-6)
             entropy_last_loss = -(pout*torch.log(pout) + (1-pout)*torch.log(1-pout)).mean()
