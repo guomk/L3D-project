@@ -1,6 +1,6 @@
 import os
 os.environ["XLA_PYTHON_CLIENT_ALLOCATOR"] = "platform" # Needed to free up jax GPU memory
-# os.environ["CUDA_VISIBLE_DEVICES"] = '0'
+os.environ["CUDA_VISIBLE_DEVICES"] = '1'
 
 import os, sys, copy, glob, json, time, random, argparse
 from shutil import copyfile
@@ -94,13 +94,17 @@ def render_viewpoints(model, render_poses, HW, Ks, ndc, render_kwargs,
         rays_o, rays_d, viewdirs = dvgo.get_rays_of_a_view(
                 H, W, K, c2w, ndc, inverse_y=render_kwargs['inverse_y'],
                 flip_x=cfg.data.flip_x, flip_y=cfg.data.flip_y)
+        
         keys = ['rgb_marched', 'depth', 'alphainv_last']
         rays_o = rays_o.flatten(0,-2)
         rays_d = rays_d.flatten(0,-2)
         viewdirs = viewdirs.flatten(0,-2)
+        exposure_idx = torch.zeros((rays_o.shape[0],)).long()
+        shutter_speed = torch.ones((rays_o.shape[0],))
         render_result_chunks = [
-            {k: v for k, v in model(ro, rd, vd, **render_kwargs).items() if k in keys}
-            for ro, rd, vd in zip(rays_o.split(8192, 0), rays_d.split(8192, 0), viewdirs.split(8192, 0))
+            {k: v for k, v in model(ro, rd, vd, {'exposure_idx':ix, 'ShutterSpeed':ss}, **render_kwargs).items() if k in keys}
+            for ro, rd, vd, ix, ss in zip(rays_o.split(8192, 0), rays_d.split(8192, 0), viewdirs.split(8192, 0),
+            exposure_idx.split(8192, 0), shutter_speed.split(8192, 0))
         ]
         render_result = {
             k: torch.cat([ret[k] for ret in render_result_chunks]).reshape(H,W,-1)
@@ -185,6 +189,7 @@ def load_everything(args, cfg):
     else:
         data_dict['images'] = torch.FloatTensor(data_dict['images'], device='cpu')
     data_dict['poses'] = torch.Tensor(data_dict['poses'])
+
     return data_dict
 
 
@@ -259,7 +264,7 @@ def compute_bbox_by_coarse_geo(model_class, model_path, thres):
     print('compute_bbox_by_coarse_geo: finish (eps time:', eps_time, 'secs)')
     return xyz_min, xyz_max
 
-def create_new_model(cfg, cfg_model, cfg_train, xyz_min, xyz_max, stage, coarse_ckpt_path):
+def create_new_model(cfg, cfg_model, cfg_train, xyz_min, xyz_max, stage, coarse_ckpt_path, data_dict):
     model_kwargs = copy.deepcopy(cfg_model)
     num_voxels = model_kwargs.pop('num_voxels')
     if len(cfg_train.pg_scale):
@@ -270,7 +275,7 @@ def create_new_model(cfg, cfg_model, cfg_train, xyz_min, xyz_max, stage, coarse_
         print(f'scene_rep_reconstruction ({stage}): \033[96muse multiplane images\033[0m')
         model = dmpigo.DirectMPIGO(
             xyz_min=xyz_min, xyz_max=xyz_max,
-            num_voxels=num_voxels, use_raw=use_raw,
+            num_voxels=num_voxels, use_raw=use_raw, n_exposures=data_dict['metadata']['exposure_idx'].max() + 1,
             **model_kwargs)
     elif cfg.data.unbounded_inward:
         print(f'scene_rep_reconstruction ({stage}): \033[96muse contraced voxel grid (covering unbounded)\033[0m')
@@ -330,8 +335,9 @@ def scene_rep_reconstruction(args, cfg, cfg_model, cfg_train, xyz_min, xyz_max, 
     # init model and optimizer
     if reload_ckpt_path is None:
         print(f'scene_rep_reconstruction ({stage}): train from scratch')
-        model, optimizer = create_new_model(cfg, cfg_model, cfg_train, xyz_min, xyz_max, stage, coarse_ckpt_path)
+        model, optimizer = create_new_model(cfg, cfg_model, cfg_train, xyz_min, xyz_max, stage, coarse_ckpt_path, data_dict)
         start = 0
+        print('cfg', cfg_model)
         if cfg_model.maskout_near_cam_vox:
             model.maskout_near_cam_vox(poses[i_train,:3,3], near)
     else:
@@ -357,6 +363,7 @@ def scene_rep_reconstruction(args, cfg, cfg_model, cfg_train, xyz_min, xyz_max, 
         else:
             rgb_tr_ori = images[i_train].to('cpu' if cfg.data.load2gpu_on_the_fly else device)
 
+        exp_metadata_tr = {}
         if cfg_train.ray_sampler == 'in_maskcache':
             rgb_tr, rays_o_tr, rays_d_tr, viewdirs_tr, imsz = dvgo.get_training_rays_in_maskcache_sampling(
                     rgb_tr_ori=rgb_tr_ori,
@@ -371,6 +378,11 @@ def scene_rep_reconstruction(args, cfg, cfg_model, cfg_train, xyz_min, xyz_max, 
                 train_poses=poses[i_train],
                 HW=HW[i_train], Ks=Ks[i_train], ndc=cfg.data.ndc, inverse_y=cfg.data.inverse_y,
                 flip_x=cfg.data.flip_x, flip_y=cfg.data.flip_y)
+            for key in ['exposure_idx', 'ShutterSpeed']:
+                exp_metadata_tr[key] = torch.repeat_interleave(
+                    torch.tensor(data_dict['metadata'][key][i_train]), torch.tensor(imsz)
+                )
+                assert exp_metadata_tr[key].shape[0] == rgb_tr.shape[0]
         else:
             rgb_tr, rays_o_tr, rays_d_tr, viewdirs_tr, imsz = dvgo.get_training_rays(
                 rgb_tr=rgb_tr_ori,
@@ -379,9 +391,10 @@ def scene_rep_reconstruction(args, cfg, cfg_model, cfg_train, xyz_min, xyz_max, 
                 flip_x=cfg.data.flip_x, flip_y=cfg.data.flip_y)
         index_generator = dvgo.batch_indices_generator(len(rgb_tr), cfg_train.N_rand)
         batch_index_sampler = lambda: next(index_generator)
-        return rgb_tr, rays_o_tr, rays_d_tr, viewdirs_tr, imsz, batch_index_sampler
+        return rgb_tr, rays_o_tr, rays_d_tr, viewdirs_tr, imsz, exp_metadata_tr, batch_index_sampler
 
-    rgb_tr, rays_o_tr, rays_d_tr, viewdirs_tr, imsz, batch_index_sampler = gather_training_rays()
+    rgb_tr, rays_o_tr, rays_d_tr, viewdirs_tr, imsz, exp_metadata_tr, batch_index_sampler = gather_training_rays()
+    
 
     # view-count-based learning rate
     if cfg_train.pervoxel_lr:
@@ -430,6 +443,7 @@ def scene_rep_reconstruction(args, cfg, cfg_model, cfg_train, xyz_min, xyz_max, 
             rays_o = rays_o_tr[sel_i]
             rays_d = rays_d_tr[sel_i]
             viewdirs = viewdirs_tr[sel_i]
+            exp_metadata = {k: v[sel_i] for k,v in exp_metadata_tr.items()}
         elif cfg_train.ray_sampler == 'random':
             sel_b = torch.randint(rgb_tr.shape[0], [cfg_train.N_rand])
             sel_r = torch.randint(rgb_tr.shape[1], [cfg_train.N_rand])
@@ -446,13 +460,14 @@ def scene_rep_reconstruction(args, cfg, cfg_model, cfg_train, xyz_min, xyz_max, 
             rays_o = rays_o.to(device)
             rays_d = rays_d.to(device)
             viewdirs = viewdirs.to(device)
+            exp_metadata = {k: v.to(device) for k,v in exp_metadata.items()}
 
         # volume rendering
         render_result = model(
-            rays_o, rays_d, viewdirs,
+            rays_o, rays_d, viewdirs, exp_metadata,
             global_step=global_step, is_train=True,
             **render_kwargs)
-
+        
         # gradient descent step
         optimizer.zero_grad(set_to_none=True)
         if cfg.data.dataset_type == 'raw':
@@ -675,6 +690,7 @@ if __name__=='__main__':
             },
         }
 
+
     # render trainset and eval
     if args.render_train:
         testsavedir = os.path.join(cfg.basedir, cfg.expname, f'render_train_{ckpt_name}')
@@ -720,6 +736,7 @@ if __name__=='__main__':
         testsavedir = os.path.join(cfg.basedir, cfg.expname, f'render_video_{ckpt_name}')
         os.makedirs(testsavedir, exist_ok=True)
         print('All results are dumped into', testsavedir)
+
         rgbs, depths, bgmaps = render_viewpoints(
                 render_poses=data_dict['render_poses'],
                 HW=data_dict['HW'][data_dict['i_test']][[0]].repeat(len(data_dict['render_poses']), 0),

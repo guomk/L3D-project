@@ -24,7 +24,8 @@ class DirectMPIGO(torch.nn.Module):
                  density_config={}, k0_config={},
                  rgbnet_dim=0,
                  rgbnet_depth=3, rgbnet_width=128,
-                 viewbase_pe=0, use_raw=False,
+                 viewbase_pe=0, use_raw=False, exposure_scaling=False,
+                 n_exposures=0,
                  **kwargs):
         super(DirectMPIGO, self).__init__()
         # use raw format
@@ -120,6 +121,14 @@ class DirectMPIGO(torch.nn.Module):
                 path=None, mask=mask,
                 xyz_min=self.xyz_min, xyz_max=self.xyz_max)
 
+        self.n_exposures = n_exposures
+        self.exposure_scaling = exposure_scaling
+        if exposure_scaling:
+            self.learned_exposure_scaling = nn.Embedding(
+                n_exposures, 3
+            )
+            self.learned_exposure_scaling.weight.data.fill_(0)
+
     def _set_grid_resolution(self, num_voxels, mpi_depth):
         # Determine grid resolution
         self.num_voxels = num_voxels
@@ -147,6 +156,8 @@ class DirectMPIGO(torch.nn.Module):
             'k0_type': self.k0_type,
             'density_config': self.density_config,
             'k0_config': self.k0_config,
+            'exposure_scaling': self.exposure_scaling,
+            'n_exposures': self.n_exposures,
             **self.rgbnet_kwargs,
         }
 
@@ -251,14 +262,15 @@ class DirectMPIGO(torch.nn.Module):
             step_id = torch.arange(mask_inbbox.shape[1]).view(1,-1).expand_as(mask_inbbox)[mask_inbbox]
         return ray_pts, ray_id, step_id, N_samples
 
-    def forward(self, rays_o, rays_d, viewdirs, global_step=None, **render_kwargs):
+    def forward(self, rays_o, rays_d, viewdirs, exp_metadata, global_step=None, **render_kwargs):
         '''Volume rendering
         @rays_o:   [N, 3] the starting point of the N shooting rays.
         @rays_d:   [N, 3] the shooting direction of the N rays.
         @viewdirs: [N, 3] viewing direction to compute positional embedding for MLP.
         '''
+        if self.exposure_scaling:
+            assert self.exposure_scaling and exp_metadata != {}, 'Ray exposures necessary to perform learned exposure scaling'
         assert len(rays_o.shape)==2 and rays_o.shape[-1]==3, 'Only suuport point queries in [N, 3] format'
-
         ret_dict = {}
         N = len(rays_o)
 
@@ -325,6 +337,17 @@ class DirectMPIGO(torch.nn.Module):
             rgb_marched += (alphainv_last.unsqueeze(-1) * torch.rand_like(rgb_marched))
         else:
             rgb_marched += (alphainv_last.unsqueeze(-1) * render_kwargs['bg'])
+
+        # Learned exposure scaling and clipping
+        if self.exposure_scaling:
+            # Force scaling offset to always be zero when exposure_idx is 0.
+            # This constraint fixes a reference point for the scene's brightness.
+            mask = exp_metadata['exposure_idx'] > 0
+            scaling = 1 + mask[..., None] * self.learned_exposure_scaling(exp_metadata['exposure_idx'])
+            rgb_marched *= scaling * exp_metadata['ShutterSpeed'][..., None]
+            rgb_marched = torch.minimum(rgb_marched, torch.ones_like(rgb_marched))
+
+
         s = (step_id+0.5) / N_samples
         ret_dict.update({
             'alphainv_last': alphainv_last,
