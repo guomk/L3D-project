@@ -4,7 +4,7 @@ expname = 'rawnerf_candlefiat'
 
 data = dict(
     datadir='./data/rawnerf/scenes/candlefiat',
-    factor=1,
+    factor=2,
 )
 
 fine_train = dict(
