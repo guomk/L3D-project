@@ -59,6 +59,7 @@ def postprocess_raw(raw: _Array,
   rgb_linear = matmul(raw, camtorgb.T)
   if exposure is None:
     exposure = xnp.percentile(rgb_linear, 97)
+    print(f'Autoexposing at 97th percentile: {exposure:.3f}')
   # "Expose" image by mapping the input exposure level to white and clipping.
   rgb_linear_scaled = xnp.clip(rgb_linear / exposure, 0, 1)
   # Apply sRGB gamma curve to serve as a simple tonemap.

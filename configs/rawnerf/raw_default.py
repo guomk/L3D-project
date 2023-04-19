@@ -34,3 +34,5 @@ fine_model_and_render = dict(
     fast_color_thres=1e-3,
 )
 
+exposure = None
+

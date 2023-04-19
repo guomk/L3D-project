@@ -688,11 +688,12 @@ if __name__=='__main__':
                 savedir=testsavedir, dump_images=args.dump_images,
                 eval_ssim=args.eval_ssim, eval_lpips_alex=args.eval_lpips_alex, eval_lpips_vgg=args.eval_lpips_vgg,
                 **render_viewpoints_kwargs)
-        np.savez_compressed(os.path.join(testsavedir, 'unproc_results.npz'), rgbs=rgbs, depths=depths, bgmaps=bgmaps)
+        # np.savez_compressed(os.path.join(testsavedir, 'unproc_results.npz'), rgbs=rgbs, depths=depths, bgmaps=bgmaps)
+        imageio.mimwrite(os.path.join(testsavedir, 'video.raw.mp4'), utils.to8b(rgbs), fps=5, quality=8)
         if(cfg.data.dataset_type == 'raw'):
-            rgbs =  postprocess_fn(rgbs)
-        imageio.mimwrite(os.path.join(testsavedir, 'video.rgb.mp4'), utils.to8b(rgbs), fps=30, quality=8)
-        imageio.mimwrite(os.path.join(testsavedir, 'video.depth.mp4'), utils.to8b(1 - depths / np.max(depths)), fps=30, quality=8)
+            rgbs_proc = postprocess_fn(rgbs, cfg.exposure)
+            imageio.mimwrite(os.path.join(testsavedir, f'video.rgb.mp4'), utils.to8b(rgbs_proc), fps=5, quality=8)
+        imageio.mimwrite(os.path.join(testsavedir, 'video.depth.mp4'), utils.to8b(1 - depths / np.max(depths)), fps=5, quality=8)
 
     # render testset and eval
     if args.render_test:
@@ -707,11 +708,12 @@ if __name__=='__main__':
                 savedir=testsavedir, dump_images=args.dump_images,
                 eval_ssim=args.eval_ssim, eval_lpips_alex=args.eval_lpips_alex, eval_lpips_vgg=args.eval_lpips_vgg,
                 **render_viewpoints_kwargs)
-        np.savez_compressed(os.path.join(testsavedir, 'unproc_results.npz'), rgbs=rgbs, depths=depths, bgmaps=bgmaps)
-        # if(cfg.data.dataset_type == 'raw'):
-        #     rgbs =  postprocess_fn(rgbs)
-        imageio.mimwrite(os.path.join(testsavedir, 'video.rgb.mp4'), utils.to8b(rgbs), fps=30, quality=8)
-        imageio.mimwrite(os.path.join(testsavedir, 'video.depth.mp4'), utils.to8b(1 - depths / np.max(depths)), fps=30, quality=8)
+        # np.savez_compressed(os.path.join(testsavedir, 'unproc_results.npz'), rgbs=rgbs, depths=depths, bgmaps=bgmaps)
+        imageio.mimwrite(os.path.join(testsavedir, 'video.raw.mp4'), utils.to8b(rgbs), fps=5, quality=8)
+        if(cfg.data.dataset_type == 'raw'):
+            rgbs_proc = postprocess_fn(rgbs, cfg.exposure)
+            imageio.mimwrite(os.path.join(testsavedir, f'video.rgb.mp4'), utils.to8b(rgbs_proc), fps=5, quality=8)
+        imageio.mimwrite(os.path.join(testsavedir, 'video.depth.mp4'), utils.to8b(1 - depths / np.max(depths)), fps=5, quality=8)
 
     # render video
     if args.render_video:
@@ -727,9 +729,10 @@ if __name__=='__main__':
                 render_video_rot90=args.render_video_rot90,
                 savedir=testsavedir, dump_images=args.dump_images,
                 **render_viewpoints_kwargs)
-        np.savez_compressed(os.path.join(testsavedir, 'unproc_results.npz'), rgbs=rgbs, depths=depths, bgmaps=bgmaps)
-        # if(cfg.data.dataset_type == 'raw'):
-        #     rgbs =  postprocess_fn(rgbs)
+        # np.savez_compressed(os.path.join(testsavedir, 'unproc_results.npz'), rgbs=rgbs, depths=depths, bgmaps=bgmaps)
+        imageio.mimwrite(os.path.join(testsavedir, 'video.raw.mp4'), utils.to8b(rgbs), fps=30, quality=8)
+        if(cfg.data.dataset_type == 'raw'):
+            rgbs = postprocess_fn(rgbs, cfg.exposure)
         imageio.mimwrite(os.path.join(testsavedir, 'video.rgb.mp4'), utils.to8b(rgbs), fps=30, quality=8)
         import matplotlib.pyplot as plt
         depths_vis = depths * (1-bgmaps) + bgmaps
