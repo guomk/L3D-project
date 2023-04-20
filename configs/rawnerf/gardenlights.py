@@ -1,6 +1,6 @@
 _base_ = './raw_default.py'
 
-expname = 'rawnerf_gardenlights'
+expname = 'rawnerf_gardenlights3'
 
 data = dict(
     datadir='./data/rawnerf/scenes/gardenlights',
@@ -8,6 +8,9 @@ data = dict(
 )
 
 fine_train = dict(
-    N_iters=50000,
+    N_iters=5000,
 )
+
+exposure = None
+activation_bias = -0.5
 

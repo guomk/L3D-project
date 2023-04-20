@@ -27,12 +27,13 @@ fine_train = dict(
 
 fine_model_and_render = dict(
     num_voxels=256**3,
-    mpi_depth=128,
-    rgbnet_dim=9,
-    rgbnet_width=64,
+    mpi_depth=256,
+    rgbnet_dim=12,
+    rgbnet_width=128,
     world_bound_scale=1,
     fast_color_thres=1e-3,
 )
 
 exposure = None
+activation_bias = 0.0
 

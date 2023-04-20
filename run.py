@@ -270,7 +270,7 @@ def create_new_model(cfg, cfg_model, cfg_train, xyz_min, xyz_max, stage, coarse_
         print(f'scene_rep_reconstruction ({stage}): \033[96muse multiplane images\033[0m')
         model = dmpigo.DirectMPIGO(
             xyz_min=xyz_min, xyz_max=xyz_max,
-            num_voxels=num_voxels, use_raw=use_raw,
+            num_voxels=num_voxels, use_raw=use_raw, activation_bias=cfg.activation_bias,
             **model_kwargs)
     elif cfg.data.unbounded_inward:
         print(f'scene_rep_reconstruction ({stage}): \033[96muse contraced voxel grid (covering unbounded)\033[0m')

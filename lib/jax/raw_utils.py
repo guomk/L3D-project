@@ -50,6 +50,7 @@ def postprocess_raw(raw: _Array,
   Returns:
     srgb: [H, W, 3], color corrected + exposed + gamma mapped image.
   """
+  print('Exposure:', exposure)
   if raw.shape[-1] != 3:
     raise ValueError(f'raw.shape[-1] is {raw.shape[-1]}, expected 3')
   if camtorgb.shape != (3, 3):

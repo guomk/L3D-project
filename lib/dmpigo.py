@@ -24,11 +24,12 @@ class DirectMPIGO(torch.nn.Module):
                  density_config={}, k0_config={},
                  rgbnet_dim=0,
                  rgbnet_depth=3, rgbnet_width=128,
-                 viewbase_pe=0, use_raw=False,
+                 viewbase_pe=0, use_raw=False, activation_bias=0,
                  **kwargs):
         super(DirectMPIGO, self).__init__()
         # use raw format
         self.use_raw = use_raw
+        self.activation_bias = activation_bias
         
         self.register_buffer('xyz_min', torch.Tensor(xyz_min))
         self.register_buffer('xyz_max', torch.Tensor(xyz_max))
@@ -300,7 +301,8 @@ class DirectMPIGO(torch.nn.Module):
         if self.rgbnet is None:
             # no view-depend effect
             if self.use_raw:
-                rgb = torch.exp(vox_emb - 5)
+                rgb = torch.exp(vox_emb + self.activation_bias)
+                # rgb = torch.sigmoid(vox_emb)
             else:
                 rgb = torch.sigmoid(vox_emb)
         else:
@@ -311,7 +313,8 @@ class DirectMPIGO(torch.nn.Module):
             rgb_feat = torch.cat([vox_emb, viewdirs_emb], -1)
             rgb_logit = self.rgbnet(rgb_feat)
             if self.use_raw:
-                rgb = torch.exp(rgb_logit - 5)
+                rgb = torch.exp(rgb_logit + self.activation_bias)
+                # rgb = torch.sigmoid(rgb_logit)
             else:
                 rgb = torch.sigmoid(rgb_logit)
 
