@@ -10,10 +10,15 @@ data = dict(
 
 coarse_train = dict(
     N_iters=0,
+    pervoxel_lr=False,
+)
+
+coarse_model_and_render = dict(
+    maskout_near_cam_vox=False, # not implemented for DMPIGO
 )
 
 fine_train = dict(
-    N_iters=30000,
+    N_iters=50000,
     # N_iters=5000,
     N_rand=4096,
     weight_distortion=0.01,
@@ -32,6 +37,7 @@ fine_model_and_render = dict(
     rgbnet_width=128,
     world_bound_scale=1,
     fast_color_thres=1e-3,
+    exposure_scaling=False,
 )
 
 exposure = None
