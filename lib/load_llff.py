@@ -125,20 +125,24 @@ def _load_data(basedir, factor=None, width=None, height=None, load_imgs=True, lo
         return
 
     imgfiles = [os.path.join(imgdir, f) for f in sorted(os.listdir(imgdir)) if f.endswith('JPG') or f.endswith('jpg') or f.endswith('png')]
+    print('POSES', poses.shape)
     if poses.shape[-1] != len(imgfiles):
-        print()
-        print( 'Mismatch between imgs {} and poses {} !!!!'.format(len(imgfiles), poses.shape[-1]) )
-        names = set(name[:-4] for name in np.load(os.path.join(basedir, 'poses_names.npy')))
-        assert len(names) == poses.shape[-1]
-        print('Below failed files are skip due to SfM failure:')
-        new_imgfiles = []
-        for i in imgfiles:
-            fname = os.path.split(i)[1][:-4]
-            if fname in names:
-                new_imgfiles.append(i)
-            else:
-                print('==>', i)
-        imgfiles = new_imgfiles
+        try:
+            poses = poses[...,:len(imgfiles)]
+        except:
+            print()
+            print( 'Mismatch between imgs {} and poses {} !!!!'.format(len(imgfiles), poses.shape[-1]) )
+            names = set(name[:-4] for name in np.load(os.path.join(basedir, 'poses_names.npy')))
+            assert len(names) == poses.shape[-1]
+            print('Below failed files are skip due to SfM failure:')
+            new_imgfiles = []
+            for i in imgfiles:
+                fname = os.path.split(i)[1][:-4]
+                if fname in names:
+                    new_imgfiles.append(i)
+                else:
+                    print('==>', i)
+            imgfiles = new_imgfiles
 
     if len(imgfiles) < 3:
         print('Too few images...')

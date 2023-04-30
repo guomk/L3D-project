@@ -1,13 +1,14 @@
-_base_ = './raw_default.py'
+_base_ = './llff_default.py'
 
-expname = 'rawnerf_bikes_tm_exp'
+expname = 'bikes_ldr'
 
 data = dict(
     datadir='./data/rawnerf/scenes/bikes',
-    factor=4,
 )
 
 fine_train = dict(
     N_iters=50000,
 )
 
+exposure = None
+activation_bias = 0.0

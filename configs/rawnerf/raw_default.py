@@ -37,7 +37,7 @@ fine_model_and_render = dict(
     rgbnet_width=128,
     world_bound_scale=1,
     fast_color_thres=1e-3,
-    exposure_scaling=False,
+    exposure_scaling=True,
 )
 
 exposure = None

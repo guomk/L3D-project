@@ -1,6 +1,6 @@
 import os
 os.environ["XLA_PYTHON_CLIENT_ALLOCATOR"] = "platform" # Needed to free up jax GPU memory
-os.environ["CUDA_VISIBLE_DEVICES"] = '1'
+os.environ["CUDA_VISIBLE_DEVICES"] = '0'
 
 import os, sys, copy, glob, json, time, random, argparse
 from shutil import copyfile
@@ -273,9 +273,10 @@ def create_new_model(cfg, cfg_model, cfg_train, xyz_min, xyz_max, stage, coarse_
     use_raw = cfg.data.dataset_type == 'raw'
     if cfg.data.ndc:
         print(f'scene_rep_reconstruction ({stage}): \033[96muse multiplane images\033[0m')
+        n_exposures = data_dict['metadata']['exposure_idx'].max() + 1 if 'metadata' in data_dict else 0
         model = dmpigo.DirectMPIGO(
             xyz_min=xyz_min, xyz_max=xyz_max,
-            num_voxels=num_voxels, use_raw=use_raw, n_exposures=data_dict['metadata']['exposure_idx'].max() + 1, activation_bias=cfg.activation_bias,
+            num_voxels=num_voxels, use_raw=use_raw, n_exposures=n_exposures, activation_bias=cfg.activation_bias,
             **model_kwargs)
     elif cfg.data.unbounded_inward:
         print(f'scene_rep_reconstruction ({stage}): \033[96muse contraced voxel grid (covering unbounded)\033[0m')
@@ -378,11 +379,12 @@ def scene_rep_reconstruction(args, cfg, cfg_model, cfg_train, xyz_min, xyz_max, 
                 train_poses=poses[i_train],
                 HW=HW[i_train], Ks=Ks[i_train], ndc=cfg.data.ndc, inverse_y=cfg.data.inverse_y,
                 flip_x=cfg.data.flip_x, flip_y=cfg.data.flip_y)
-            for key in ['exposure_idx', 'ShutterSpeed']:
-                exp_metadata_tr[key] = torch.repeat_interleave(
-                    torch.tensor(data_dict['metadata'][key][i_train]), torch.tensor(imsz)
-                )
-                assert exp_metadata_tr[key].shape[0] == rgb_tr.shape[0]
+            if cfg.fine_model_and_render.exposure_scaling:
+                for key in ['exposure_idx', 'ShutterSpeed']:
+                    exp_metadata_tr[key] = torch.repeat_interleave(
+                        torch.tensor(data_dict['metadata'][key][i_train]), torch.tensor(imsz)
+                    )
+                    assert exp_metadata_tr[key].shape[0] == rgb_tr.shape[0]
         else:
             rgb_tr, rays_o_tr, rays_d_tr, viewdirs_tr, imsz = dvgo.get_training_rays(
                 rgb_tr=rgb_tr_ori,
@@ -709,7 +711,7 @@ if __name__=='__main__':
         if(cfg.data.dataset_type == 'raw'):
             rgbs_proc = postprocess_fn(rgbs, cfg.exposure)
             imageio.mimwrite(os.path.join(testsavedir, f'video.rgb.mp4'), utils.to8b(rgbs_proc), fps=5, quality=8)
-        imageio.mimwrite(os.path.join(testsavedir, 'video.depth.mp4'), utils.to8b(1 - depths / np.max(depths)), fps=5, quality=8)
+        imageio.mimwrite(os.path.join(testsavedir, 'video.depth.mp4'), utils.to8b(depths / np.max(depths)), fps=5, quality=8)
 
     # render testset and eval
     if args.render_test:
@@ -729,7 +731,7 @@ if __name__=='__main__':
         if(cfg.data.dataset_type == 'raw'):
             rgbs_proc = postprocess_fn(rgbs, cfg.exposure)
             imageio.mimwrite(os.path.join(testsavedir, f'video.rgb.mp4'), utils.to8b(rgbs_proc), fps=5, quality=8)
-        imageio.mimwrite(os.path.join(testsavedir, 'video.depth.mp4'), utils.to8b(1 - depths / np.max(depths)), fps=5, quality=8)
+        imageio.mimwrite(os.path.join(testsavedir, 'video.depth.mp4'), utils.to8b(depths / np.max(depths)), fps=5, quality=8)
 
     # render video
     if args.render_video:
@@ -754,7 +756,7 @@ if __name__=='__main__':
         import matplotlib.pyplot as plt
         depths_vis = depths * (1-bgmaps) + bgmaps
         dmin, dmax = np.percentile(depths_vis[bgmaps < 0.1], q=[5, 95])
-        depth_vis = plt.get_cmap('rainbow')(1 - np.clip((depths_vis - dmin) / (dmax - dmin), 0, 1)).squeeze()[..., :3]
+        depth_vis = plt.get_cmap('rainbow')(np.clip((depths_vis - dmin) / (dmax - dmin), 0, 1)).squeeze()[..., :3]
         imageio.mimwrite(os.path.join(testsavedir, 'video.depth.mp4'), utils.to8b(depth_vis), fps=30, quality=8)
 
     print('Done')

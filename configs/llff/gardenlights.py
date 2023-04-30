@@ -1,10 +1,9 @@
-_base_ = './raw_default.py'
+_base_ = './llff_default.py'
 
-expname = 'rawnerf_gardenlights_tm_exp'
+expname = 'gardenlights_ldr'
 
 data = dict(
     datadir='./data/rawnerf/scenes/gardenlights',
-    factor=8,
 )
 
 fine_train = dict(
@@ -12,5 +11,4 @@ fine_train = dict(
 )
 
 exposure = None
-activation_bias = -0.5
-
+activation_bias = 0.0

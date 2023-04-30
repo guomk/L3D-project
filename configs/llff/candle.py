@@ -1,12 +1,14 @@
-_base_ = './raw_default.py'
+_base_ = './llff_default.py'
 
-expname = 'rawnerf_candle_tm'
+expname = 'candle_ldr'
 
 data = dict(
     datadir='./data/rawnerf/scenes/candle',
-    # datadir='./data/nerf_llff_data/room',
 )
 
 fine_train = dict(
     N_iters=50000,
 )
+
+exposure = None
+activation_bias = 0.0

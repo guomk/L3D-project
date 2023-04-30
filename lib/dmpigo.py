@@ -347,7 +347,8 @@ class DirectMPIGO(torch.nn.Module):
             # This constraint fixes a reference point for the scene's brightness.
             mask = exp_metadata['exposure_idx'] > 0
             scaling = mask[..., None] * self.learned_exposure_scaling(exp_metadata['exposure_idx'])
-            rgb_marched *= 1 + (scaling * exp_metadata['ShutterSpeed'][..., None])
+            # rgb_marched *= 1 + (scaling * exp_metadata['ShutterSpeed'][..., None])
+            rgb_marched *= 1 + scaling
             rgb_marched = torch.minimum(rgb_marched, torch.ones_like(rgb_marched))
 
         s = (step_id+0.5) / N_samples
