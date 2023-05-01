@@ -355,10 +355,10 @@ def load_raw_dataset(split: utils.DataSplit,
   meta['exposure_values'] = shutter_speeds / unique_shutters[0]
 
   # Rescale raw sensor measurements to [0, 1] (plus noise).
+  
+  # NOTE Hardcode block level to 528 for custom dataset.
   if len(meta['BlackLevel'].shape) != 1:
-    meta['BlackLevel'] = meta['BlackLevel'].mean(axis=-1)
-  if len(meta['WhiteLevel'].shape) != 1:
-    meta['WhiteLevel'] = meta['WhiteLevel'].mean(axis=-1)
+    meta['BlackLevel'] = np.ones_like(meta['BlackLevel'][:, 0]) * 528.0
 
   
   blacklevel = meta['BlackLevel'].reshape(-1, 1, 1)
