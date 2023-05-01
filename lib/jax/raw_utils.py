@@ -139,6 +139,7 @@ def bilinear_demosaic(bayer: _Array,
     return alt + z
 
   r, g1, g2, b = [bayer[(i//2)::2, (i%2)::2] for i in range(4)]
+  # b, g1, g2, r = [bayer[(i//2)::2, (i%2)::2] for i in range(4)]
   r = bilinear_upsample(r)
   # Flip in x and y before and after calling upsample, as bilinear_upsample
   # assumes that the samples are at the top-left corner of the 2x2 sample.
@@ -354,8 +355,17 @@ def load_raw_dataset(split: utils.DataSplit,
   meta['exposure_values'] = shutter_speeds / unique_shutters[0]
 
   # Rescale raw sensor measurements to [0, 1] (plus noise).
+  if len(meta['BlackLevel'].shape) != 1:
+    meta['BlackLevel'] = meta['BlackLevel'].mean(axis=-1)
+  if len(meta['WhiteLevel'].shape) != 1:
+    meta['WhiteLevel'] = meta['WhiteLevel'].mean(axis=-1)
+
+  
   blacklevel = meta['BlackLevel'].reshape(-1, 1, 1)
   whitelevel = meta['WhiteLevel'].reshape(-1, 1, 1)
+  print('Raw shape:', raws.shape)
+  print('Black level shape:', blacklevel.shape)
+  print('White level shape:', whitelevel.shape)
   images = (raws - blacklevel) / (whitelevel - blacklevel) * shutter_ratio
 
   # Calculate value for exposure level when gamma mapping, defaults to 97%.
